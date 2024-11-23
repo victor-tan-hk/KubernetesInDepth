@@ -1,0 +1,438 @@
+
+
++++++ 6	Intro to pods
+
+kubectl run my-pod --image=nginx
+
+kubectl get pods
+
+kubectl get pods -o wide
+
+kubectl describe pod my-pod
+
+kubectl delete pod my-pod
+
+kubectl get pods
+
+
+++++ 6.1	Using manifest to create a pod
+
+++++ pod.yaml
+
+
+apiVersion: v1
+kind: Pod
+metadata: 
+  name: my-pod
+  labels: 
+    env: production
+    tier: frontend
+spec:
+  containers:
+  - name: my-pod-container
+    image: nginx
+    ports:
+      - containerPort: 80
+
+
+
+++++ kubectl commands
+
+kubectl apply -f pod.yaml
+
+kubectl get pods
+
+kubectl describe pod my-pod
+
+kubectl logs my-pod -c my-pod-container
+
+kubectl exec my-pod -c my-pod-container -it -- /bin/bash
+
+kubectl delete -f pod.yaml
+
++++++ 7	Intro to ReplicaSets
+
+
++++ replicaset.yaml
+
+
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: myapp-replicaset
+  labels:
+    usage: controlProduction
+spec:
+  selector:
+    matchLabels:
+      env: production
+  replicas: 3
+  template: 
+    metadata: 
+      name: my-pod
+      labels: 
+        env: production
+        tier: frontend
+    spec:
+      containers:
+      - name: my-pod-container
+        image: nginx
+        ports:
+          - containerPort: 80
+
+
+
+++++ kubectl commands
+
+kubectl apply -f replicaset.yaml
+
+kubectl get replicaset
+
+kubectl describe replicaset myapp-ReplicaSet
+
+kubectl get pods
+
+kubectl delete pod myapp-ReplicaSet-xxxx
+
+kubectl get pods
+
+kubectl run another-pod --image=nginx
+
+kubectl describe pod another-pod
+
+kubectl apply -f pod.yaml
+
+kubectl get pods
+
+kubectl describe replicaset myapp-ReplicaSet
+
+kubectl edit replicaset myapp-ReplicaSet
+
+kubectl scale replicaset myapp-ReplicaSet --replicas=2
+
+kubectl get pods
+
+kubectl delete replicaset myapp-replicaset  
+ 
+kubectl delete -f replicaset.yaml
+
+
+
+++++ 8	Intro to Deployments 
+
+
+docker build -t kub-first-app .
+
+kubectl create deployment first-app --image=kub-first-app
+
+kubectl get deployments
+
+kubectl get pods
+
+kubectl describe pod first-app
+
+kubectl delete deployment first-app
+
+docker tag kub-first-app dockerhubaccount/kub-first-app
+
+docker push dockerhubaccount/kub-first-app
+
+kubectl create deployment first-app --image=dockerhubaccount/kub-first-app
+
+kubectl get deployments
+
+kubectl get pods
+
+kubectl get replicasets
+
+kubectl describe replicaset first-app
+
+kubectl describe pod first-app
+
+kubectl describe deployment first-app
+
++++++ 9 Intro to services
+
+kubectl expose deployment first-app --type=NodePort   --name=first-app-service --port=8080 --target-port=8080
+
+kubectl get services
+
+kubectl describe service first-app-service
+
+minikube service first-app-service
+
+netstat -abon | findstr 8080
+
+kubectl delete service first-app-service
+
+++++ 9.1	Scaling Pod replicas to maintain desired state
+
+kubectl get replicasets
+
+kubectl get pods
+
+kubectl describe pod first-app
+
+kubectl scale deployment/first-app --replicas=3 --record
+
+kubectl rollout history deployment/first-app
+
+kubectl get replicasets
+
+
+kubectl get pods
+
+kubectl scale deployment/first-app --replicas=1 --record
+
+kubectl rollout history deployment/first-app
+
+++++++++ 10	Updating and rolling back deployments
+
+
+Update app.js
+
+app.get('/', (req, res) => {
+  res.send(`
+    <h1>Hello from this NodeJS app!</h1>
+    <p>Try sending a request to /error and see what happens</p>
+    <h2>Some new stuff down here</h2>
+  `);
+});
+
+
+docker build -t dockerHubAccount/kub-first-app:v2 .
+
+
+docker push dockerHubAccount/kub-first-app:v2 
+
+
+kubectl set image deployment/first-app  kub-first-app=dockerHubAccount/kub-first-app:v2 --record
+
+kubectl rollout history deployment/first-app
+
+kubectl set image deployment/first-app  kub-first-app=dockerhubaccount/kub-first-app:vxxx --record
+
+kubectl rollout status deployment/first-app
+
+kubectl get pods
+
+kubectl rollout history deployment/first-app
+
+kubectl rollout undo deployment/first-app
+
+kubectl rollout history deployment/first-app --revision=3
+
+kubectl rollout history deployment/first-app --revision=4
+
+kubectl rollout history deployment/first-app --revision=1
+
+kubectl rollout undo deployment/first-app --to-revision=1
+
+kubectl describe pod first-app
+
+kubectl rollout history deployment/first-app
+
+kubectl edit deployment first-app --record
+
+kubectl get deployments
+
+kubectl rollout history deployment/first-app
+
+kubectl delete service first-app-service
+
+kubectl delete deployment first-app
+
+++++++ 11	Configuration manifest for deployment and service 
+
++++++ deployment-custom.yaml
+
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: second-app-deployment
+  labels:
+    usage: controlProduction
+spec:
+  selector:
+    matchLabels:
+      env: production
+  replicas: 3
+  template:
+    metadata: 
+      name: my-pod
+      labels:
+        env: production
+        tier: backend
+    spec: 
+      containers:
+        - name: my-pod-container
+          image: dockerhubaccount/kub-first-app:v2
+          ports:
+            - containerPort: 80
+
+
+
+++++ kubectl commands
+
+kubectl apply -f deployment-custom.yaml
+
+
+kubectl get deployments
+
+kubectl get pods
+
+
++++++ service-custom.yaml
+
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-backend
+spec:
+  selector: 
+    env: production
+  ports:
+    - protocol: 'TCP'
+      port: 8080
+      targetPort: 8080
+  type: LoadBalancer
+
+
+++++ kubectl commands
+
+kubectl apply -f service-custom.yaml
+
+kubectl get services
+
+minikube service first backend app
+
++++++ 11.1	Performing updates and rollbacks with deployment
+
+
+kubectl apply -f deployment-custom.yaml --record
+
+kubectl get deployments
+
+kubectl get pods
+
+kubectl rollout history deployment/second-app-deployment
+
+kubectl apply -f deployment-custom.yaml --record
+
+kubectl rollout history deployment/second-app-deployment --revision=1
+
+kubectl rollout history deployment/second-app-deployment --revision=2
+
+kubectl annotate deployments second-app-deployment  kubernetes.io/change-cause="Reverted deployment back to the original image kub-first-app"  
+
+kubectl rollout history deployment/second-app-deployment
+
+kubectl rollout undo deployment/second-app-deployment
+
+kubectl rollout history deployment/second-app-deployment
+
+kubectl describe pod second-app-deployment
+
+kubectl annotate deployments second-app-deployment  kubernetes.io/change-cause="Using deployment based on image kub-first-app:v2"  
+
+kubectl rollout history deployment/second-app-deployment
+
+kubectl delete -f deployment-custom.yaml
+
+
++++++ 11.2	Merging manifest YAML files
+
++++ master-deployment.yaml
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+spec:
+  selector: 
+    app: second-app
+  ports:
+    - protocol: 'TCP'
+      port: 8080
+      targetPort: 8080
+  type: LoadBalancer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: second-app-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: second-app
+      tier: backend
+  template:
+    metadata: 
+      labels:
+        app: second-app
+        tier: backend
+    spec: 
+      containers:
+        - name: second-node
+          image: dockerhubaccount/kub-first-app:v2
+        # - name: ...
+        #   image: ...
+
+
+
++++ kubectl commands:
+
+kubectl delete -f deployment-custom.yaml -f service-custom.yaml
+
+kubectl get all
+
+kubectl apply -f master-deployment.yaml
+
+minikube service backend
+
++++++ 11.3	Configuring the image pull policy
+
++++ app.js
+
+app.get('/', (req, res) => {
+  res.send(`
+    <h1>Hello from this NodeJS app!</h1>
+    <p>Try sending a request to /error and see what happens</p>
+    <p>More new stuff </p>
+    <p>And lots more stuff </p>
+  `);
+});
+
+
++++ kubectl commands:
+
+
+docker build -t dockerHubAccount/kub-first-app:v2 .
+
+docker push dockerHubAccount/kub-first-app:v2 .
+
+kubectl apply -f master-deployment.yaml
+
+
+++++++ master-deployment.yaml
+
+….
+    spec: 
+      containers:
+        - name: my-pod-container
+          image: dockerhubaccount/kub-first-app:v2
+          imagePullPolicy: Always
+
+……
+
++++ kubectl commands:
+
+kubectl apply -f master-deployment.yaml
+
+kubectl delete -f master-deployment.yaml
+
+kubectl get all
+

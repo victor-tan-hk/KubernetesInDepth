@@ -1,0 +1,246 @@
+
+
+++++ Lab 5: Creating a deployment with a configuration manifest
+
+
++++ deployment.yaml
+
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: story-deployment
+spec: 
+  replicas: 1
+  selector:
+    matchLabels:
+      app: story
+  template:
+    metadata:
+      labels:
+        app: story
+    spec:
+      containers:
+        - name: story
+          image: dockerhubaccount/kub-data-demo
+
+
++++ service.yaml
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: story-service
+spec:
+  selector: 
+    app: story
+  type: LoadBalancer
+  ports:
+    - protocol: "TCP"
+      port: 80
+      targetPort: 3000
+
+
+++++ Lab 6: Using the emptyDir ephemeral volume
+
+
++++ app.js
+
+...
+...
+...
+
+app.get('/error', () => { 
+  process.exit(1);
+  });
+
+app.listen(3000);
+
+
++++ deployment.yaml
+
+...
+...
+...
+    spec:
+      containers:
+        - name: story
+          image: dockerhubaccount/kub-data-demo:v1
+...
+...
+...
+
++++ deployment.yaml
+
+
+...
+...
+...
+    spec:
+      containers:
+        - name: story
+          image: dockerhubaccount/kub-data-demo:v1
+          volumeMounts:
+            - mountPath: /app/story
+              name: story-volume    
+      volumes: 
+        - name: story-volume
+          emptyDir: {}
+...
+...
+...
+
+
+
++++++ Lab 6.1	Using the hostpath persistent volume
+
++++ deployment.yaml
+
+....
+....
+....
+
+metadata:
+  name: story-deployment
+spec: 
+  replicas: 2
+  selector:          
+....
+....
+....
+  
+  
++++++ Lab 7	Using the hostpath persistent volume
+
++++ deployment.yaml
+
+....
+....
+....
+      volumes: 
+        - name: story-volume
+          hostPath:
+            path: /data/tempstorage
+            type: DirectoryOrCreate   
+
++++++++ Lab 8 Defining and applying a persistent volume (PV) and persistent volume claim (PVC) 
+
+
+++++ host-pv.yaml
+
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: host-pv
+spec:
+  capacity: 
+    storage: 1Gi
+  volumeMode: Filesystem
+  storageClassName: standard
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /pvdata
+    type: DirectoryOrCreate
+
+
+++++ host-pvc.yaml
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: host-pvc
+spec:
+  volumeName: host-pv
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: standard
+  resources:
+    requests: 
+      storage: 1Gi
+
+
+++++ Changes to deployment.yaml
+
+...
+....
+....
+          volumeMounts:
+            - mountPath: /app/story
+              name: story-volume    
+      volumes: 
+        - name: story-volume
+          persistentVolumeClaim:
+            claimName: host-pvc
+
+ 
+++++++ Lab 9	Incorporating environment variables into manifests
+
++++ Modify app.js
+
+
+......
+......
+
+const app = express();
+
+const filePath = path.join(__dirname, process.env.STORY_FOLDER, 'text.txt');
+
+app.use(bodyParser.json());
+ 
+......
+......
+ 
+
++++ Modify deployment.yaml 
+ 
+......
+......
+ 
+       containers:
+        - name: story
+          image: dockerhubaccount/kub-data-demo:v2
+          env: 
+            - name: STORY_FOLDER
+              value: 'newstory'
+          volumeMounts:
+            - mountPath: /app/newstory
+              name: story-volume    
+      volumes: 
+
+......
+......
+
+++++ Topic 9.1	Using ConfigMap to specify environment variables
+
+
++++ environment.yaml
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: data-store-env
+data:
+  folder: 'newstory'
+  # more additional key: value pairs
+
+
++++ Modify deployment.yaml
+
+....
+....
+          env: 
+            - name: STORY_FOLDER
+              valueFrom: 
+                configMapKeyRef:
+                  name: data-store-env
+                  key: folder
+                  # returns value: 'story'
+          volumeMounts:
+            - mountPath: /app/newstory
+              name: story-volume    
+
+....
+....
+
+
