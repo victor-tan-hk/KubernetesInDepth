@@ -1,5 +1,3 @@
 # Kubernetes In Depth
 
-## Sandisk 
-
-### Nov 25 - 28
+### Dec 1 - 3

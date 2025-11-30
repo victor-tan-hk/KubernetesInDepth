@@ -1,0 +1,200 @@
+
+
+++++++++++++ Lab 1 - Core Kubernetes Objects
+
+++++ 5.1	Using manifest to create a pod
+
+++++ pod.yaml
+
+
+apiVersion: v1
+kind: Pod
+metadata: 
+  name: my-pod
+  labels: 
+    env: production
+    tier: frontend
+spec:
+  containers:
+  - name: my-pod-container
+    image: nginx
+    ports:
+      - containerPort: 80
+
+
++++++ 6	Intro to ReplicaSets
+
+
++++ replicaset.yaml
+
+
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: myapp-replicaset
+  labels:
+    usage: controlProduction
+spec:
+  selector:
+    matchLabels:
+      env: production
+  replicas: 3
+  template: 
+    metadata: 
+      name: my-pod
+      labels: 
+        env: production
+        tier: frontend
+    spec:
+      containers:
+      - name: my-pod-container
+        image: nginx
+        ports:
+          - containerPort: 80
+          
+++++ 7	Intro to Deployments 
+
+kubectl create deployment first-app --image=dockerhubaccount/kub-first-app
+
++++++ 8 Intro to services
+
+kubectl expose deployment first-app --type=NodePort   --name=first-app-service --port=8080 --target-port=8080
+
++++ 9 Updating and rolling back deployments
+
+
+Update app.js
+
+app.get('/', (req, res) => {
+  res.send(`
+    <h1>Hello from this NodeJS app!</h1>
+    <p>Try sending a request to /error and see what happens</p>
+    <h2>Some new stuff down here</h2>
+  `);
+});
+
+kubectl set image deployment/first-app  kub-first-app=dockerHubAccount/kub-first-app:v2 --record
+
+
+kubectl set image deployment/first-app  kub-first-app=dockerhubaccount/kub-first-app:vxxx --record
+
+
+++++++ 10	Configuration manifest for deployment and service 
+
++++++ deployment-custom.yaml
+
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: second-app-deployment
+  labels:
+    usage: controlProduction
+spec:
+  selector:
+    matchLabels:
+      env: production
+  replicas: 3
+  template:
+    metadata: 
+      name: my-pod
+      labels:
+        env: production
+        tier: backend
+    spec: 
+      containers:
+        - name: my-pod-container
+          image: dockerhubaccount/kub-first-app:v2
+          ports:
+            - containerPort: 80
+
+
++++++ service-custom.yaml
+
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-backend
+spec:
+  selector: 
+    env: production
+  ports:
+    - protocol: 'TCP'
+      port: 8080
+      targetPort: 8080
+  type: NodePort
+
+
+
++++++ 10.1	Performing updates and rollbacks via manifest
+
+kubectl rollout history deployment/second-app-deployment --revision=1
+
+kubectl rollout history deployment/second-app-deployment --revision=2
+
+kubectl annotate deployments second-app-deployment  kubernetes.io/change-cause="Reverted deployment back to the original image kub-first-app"  
+
+kubectl annotate deployments second-app-deployment  kubernetes.io/change-cause="Using deployment based on image kub-first-app:v2"  
+
+
++++++ 10.2	Merging manifest YAML files
+
++++ master-deployment.yaml
+
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: second-app-deployment
+  labels:
+    usage: controlProduction
+spec:
+  selector:
+    matchLabels:
+      env: production
+  replicas: 1
+  template:
+    metadata: 
+      name: my-pod
+      labels:
+        env: production
+        tier: backend
+    spec: 
+      containers:
+        - name: my-pod-container
+          image: dockerhubaccount/kub-first-app:v2
+          ports:
+            - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-backend
+spec:
+  selector: 
+    env: production
+  ports:
+    - protocol: 'TCP'
+      port: 8080
+      targetPort: 8080
+  type: NodePort
+
+
+
++++++ 10.3	Configuring the image pull policy
+
++++ app.js
+
+app.get('/', (req, res) => {
+  res.send(`
+    <h1>Hello from this NodeJS app!</h1>
+    <p>Try sending a request to /error and see what happens</p>
+    <p>More new stuff </p>
+    <p>And lots more stuff </p>
+  `);
+});
+
+
+
+

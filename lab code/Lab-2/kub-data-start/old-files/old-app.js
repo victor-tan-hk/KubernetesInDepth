@@ -32,4 +32,10 @@ app.post('/story', (req, res) => {
   });
 });
 
+// To simulate an application crash
+app.get('/error', () => { 
+  process.exit(1);
+});
+
+
 app.listen(3000);
